@@ -480,12 +480,6 @@ function App() {
           </div>
         </div>
       )}
-
-      <div style={{ marginTop: '3rem', textAlign: 'center' }}>
-        <button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)' }} onClick={handleResetAll}>
-          Danger Zone: Wipe All Data
-        </button>
-      </div>
     </div>
   );
 }

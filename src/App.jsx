@@ -40,6 +40,13 @@ function App() {
     setLoading(false);
   };
 
+  const handleResetAll = () => {
+    if (window.confirm("Are you sure you want to completely wipe all data? This cannot be undone.")) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
   const handleAddPlayer = async (e) => {
     e.preventDefault();
     if (!newPlayerName.trim()) return;
@@ -121,7 +128,7 @@ function App() {
       const creditor = creditors[cIdx];
 
       const amount = Math.min(debtor.remaining, creditor.remaining);
-      
+
       if (amount > 0.001) {
         calculatedSettlements.push({
           from: debtor.name,
@@ -158,7 +165,7 @@ function App() {
 
   const handleSaveSession = async (e) => {
     e.preventDefault();
-    
+
     const validPlayers = currentPlayers.filter(p => p.name.trim() !== '');
     if (validPlayers.length < 2) {
       alert("At least 2 players are required.");
@@ -167,7 +174,7 @@ function App() {
 
     const invalidPlayers = validPlayers.filter(p => !players.includes(p.name));
     if (invalidPlayers.length > 0) {
-      alert(`The following players are not in the roster: ${invalidPlayers.map(p=>p.name).join(', ')}. Please add them first.`);
+      alert(`The following players are not in the roster: ${invalidPlayers.map(p => p.name).join(', ')}. Please add them first.`);
       return;
     }
 
@@ -185,7 +192,7 @@ function App() {
 
     const saved = await api.addSession(newSession);
     setSessions(prev => [...prev, saved]);
-    
+
     // Refresh logs
     api.getLogs().then(setLogs);
 
@@ -200,7 +207,7 @@ function App() {
   const handleSettleSubmit = async (e) => {
     e.preventDefault();
     const amountNum = Number(settlementAmount);
-    
+
     if (amountNum <= 0 || amountNum > settlementModal.data.amount) {
       alert("Invalid settlement amount.");
       return;
@@ -218,7 +225,7 @@ function App() {
 
     const saved = await api.addPayment(payment);
     setPayments(prev => [...prev, saved]);
-    
+
     api.getLogs().then(setLogs);
     setSettlementModal({ isOpen: false, data: null });
   };
@@ -238,9 +245,9 @@ function App() {
       <div className="glass-panel" style={{ marginBottom: '1.5rem' }}>
         <h2>Player Roster</h2>
         <form onSubmit={handleAddPlayer} className="flex gap-4 mt-2">
-          <input 
-            type="text" 
-            placeholder="New Player Name" 
+          <input
+            type="text"
+            placeholder="New Player Name"
             value={newPlayerName}
             onChange={(e) => setNewPlayerName(e.target.value)}
             style={{ flex: 1 }}
@@ -263,40 +270,40 @@ function App() {
           <div className="form-group grid grid-cols-2">
             <div>
               <label>Session Date</label>
-              <input 
-                type="date" 
-                value={sessionDate} 
+              <input
+                type="date"
+                value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
                 required
               />
             </div>
           </div>
-          
+
           <datalist id="roster-players">
             {players.map(p => <option key={p} value={p} />)}
           </datalist>
-          
+
           <label>Players & Results (Total must be 0)</label>
           {currentPlayers.map((player, index) => (
             <div key={index} className="player-row">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 list="roster-players"
-                placeholder="Player Name" 
+                placeholder="Player Name"
                 value={player.name}
                 onChange={(e) => handlePlayerChange(index, 'name', e.target.value)}
                 required
               />
-              <input 
-                type="number" 
+              <input
+                type="number"
                 step="any"
-                placeholder="Win/Loss Amount" 
+                placeholder="Win/Loss Amount"
                 value={player.net === 0 ? '' : player.net}
                 onChange={(e) => handlePlayerChange(index, 'net', e.target.value)}
                 required
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-outline"
                 onClick={() => handleRemovePlayer(index)}
                 disabled={currentPlayers.length <= 2}
@@ -305,7 +312,7 @@ function App() {
               </button>
             </div>
           ))}
-          
+
           <div className="flex gap-4 mt-4">
             <button type="button" className="btn btn-outline" onClick={handleAddPlayerFields}>
               Add Player
@@ -367,7 +374,7 @@ function App() {
           <div className="glass-panel" style={{ flex: 1 }}>
             <h2>Pending Settlements</h2>
             <p className="text-muted text-sm mt-2" style={{ marginBottom: '1rem' }}>Settle entirely or partially based on what is owed.</p>
-            
+
             {settlements.length === 0 ? (
               <p className="text-muted">All debts are settled!</p>
             ) : (
@@ -451,15 +458,15 @@ function App() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3 className="modal-title">Record Payment</h3>
             <p style={{ marginBottom: '1rem' }}>
-              <strong>{settlementModal.data.from}</strong> paying <strong>{settlementModal.data.to}</strong>. 
-              <br/>Max required: {formatCurrency(settlementModal.data.amount)}
+              <strong>{settlementModal.data.from}</strong> paying <strong>{settlementModal.data.to}</strong>.
+              <br />Max required: {formatCurrency(settlementModal.data.amount)}
             </p>
-            
+
             <form onSubmit={handleSettleSubmit}>
               <div className="form-group">
                 <label>Amount to Settle</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="any"
                   value={settlementAmount}
                   onChange={(e) => setSettlementAmount(e.target.value)}
@@ -479,6 +486,12 @@ function App() {
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: '3rem', textAlign: 'center' }}>
+        <button className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.3)' }} onClick={handleResetAll}>
+          Danger Zone: Wipe All Data
+        </button>
+      </div>
     </div>
   );
 }

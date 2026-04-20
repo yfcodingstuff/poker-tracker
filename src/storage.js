@@ -1,85 +1,86 @@
-// This file mimics an asynchronous database structure (like Supabase or Firebase).
-// Replacing these functions with real fetch/SDK calls is all you need to do
-// to migrate to cloud hosting. Data is currently persisted locally.
+import { createClient } from '@supabase/supabase-js';
 
-const KEYS = {
-  SESSIONS: 'jl_poker_sessions',
-  PAYMENTS: 'jl_poker_payments',
-  LOGS: 'jl_poker_logs',
-  PLAYERS: 'jl_poker_players'
-};
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Missing Supabase environment variables! Check your .env file or Vercel settings.");
+}
 
-const readData = (key) => {
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : [];
-};
-
-const writeData = (key, data) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
+export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder');
 
 export const api = {
   async getPlayers() {
-    await delay(100);
-    return readData(KEYS.PLAYERS);
+    const { data, error } = await supabase.from('players').select('name');
+    if (error) console.error("Error fetching players:", error);
+    return data ? data.map(d => d.name) : [];
   },
 
   async addPlayer(playerName) {
-    await delay(100);
-    const players = readData(KEYS.PLAYERS);
-    if (!players.includes(playerName)) {
-      players.push(playerName);
-      writeData(KEYS.PLAYERS, players);
-      await this.addLog(`Added player ${playerName}`, 'PLAYER');
+    const { error } = await supabase.from('players').insert([{ name: playerName }]);
+    if (error) {
+      console.error("Error adding player:", error);
+      alert("Failed to save to database. Check if you enabled RLS correctly.");
+      return this.getPlayers();
     }
-    return players;
+    await this.addLog(`Added player ${playerName}`, 'PLAYER');
+    return this.getPlayers();
   },
 
   async getSessions() {
-    await delay(100);
-    return readData(KEYS.SESSIONS);
+    const { data, error } = await supabase.from('sessions').select('*').order('date', { ascending: false });
+    if (error) console.error("Error fetching sessions:", error);
+    return data || [];
   },
 
   async addSession(session) {
-    await delay(100);
-    const sessions = readData(KEYS.SESSIONS);
-    sessions.push(session);
-    writeData(KEYS.SESSIONS, sessions);
+    const { data, error } = await supabase.from('sessions').insert([{
+      date: session.date,
+      players: session.players
+    }]).select();
+    
+    if (error) {
+      console.error("Error adding session:", error);
+      alert("Failed to save to database.");
+      return session; // return mock so UI doesn't crash
+    }
 
     await this.addLog(`Added a new session for ${session.date}`, 'SESSION');
-    return session;
+    return data && data.length > 0 ? data[0] : session;
   },
 
   async getPayments() {
-    await delay(100);
-    return readData(KEYS.PAYMENTS);
+    const { data, error } = await supabase.from('payments').select('*');
+    if (error) console.error("Error fetching payments:", error);
+    return data || [];
   },
 
   async addPayment(payment) {
-    await delay(100);
-    const payments = readData(KEYS.PAYMENTS);
-    payments.push(payment);
-    writeData(KEYS.PAYMENTS, payments);
+    const { data, error } = await supabase.from('payments').insert([{
+      date: payment.date,
+      from: payment.from,
+      to: payment.to,
+      amount: payment.amount
+    }]).select();
+
+    if (error) {
+      console.error("Error adding payment:", error);
+      alert("Failed to save to database.");
+      return payment;
+    }
 
     await this.addLog(`${payment.from} -> ${payment.to} ($${payment.amount} paid)`, 'PAYMENT');
-    return payment;
+    return data && data.length > 0 ? data[0] : payment;
   },
 
   async getLogs() {
-    await delay(100);
-    return readData(KEYS.LOGS).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const { data, error } = await supabase.from('logs').select('*').order('created_at', { ascending: false });
+    if (error) console.error("Error fetching logs:", error);
+    return data || [];
   },
 
   async addLog(action, type) {
-    const logs = readData(KEYS.LOGS);
-    logs.push({
-      id: Math.random().toString(36).substring(2, 9),
-      action,
-      type,
-      createdAt: new Date().toISOString()
-    });
-    writeData(KEYS.LOGS, logs);
+    const { error } = await supabase.from('logs').insert([{ action, type }]);
+    if (error) console.error("Error adding log:", error);
   }
 };

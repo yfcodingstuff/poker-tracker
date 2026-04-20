@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import Select from 'react-select';
 import { api } from './storage';
 import './index.css';
 
@@ -18,6 +19,36 @@ function App() {
     { name: '', net: 0 },
     { name: '', net: 0 }
   ]);
+
+  const selectStyles = {
+    control: (base) => ({
+      ...base,
+      background: 'rgba(15, 23, 42, 0.6)',
+      borderColor: 'var(--border-color)',
+      color: 'var(--text-main)',
+      minHeight: '46px',
+      borderRadius: '0.5rem',
+      boxShadow: 'none',
+      '&:hover': {
+        borderColor: 'var(--accent)'
+      }
+    }),
+    singleValue: (base) => ({ ...base, color: 'var(--text-main)' }),
+    input: (base) => ({ ...base, color: 'var(--text-main)' }),
+    placeholder: (base) => ({ ...base, color: 'var(--text-muted)' }),
+    menu: (base) => ({
+      ...base,
+      background: 'var(--bg-color)',
+      border: '1px solid var(--border-color)',
+      zIndex: 50
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isFocused ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+      color: 'var(--text-main)',
+      cursor: 'pointer'
+    })
+  };
 
   // Modal logic mapping
   const [settlementModal, setSettlementModal] = useState({ isOpen: false, data: null });
@@ -273,27 +304,20 @@ function App() {
             </div>
           </div>
 
-          <datalist id="roster-players">
-            {players.map(p => <option key={p} value={p} />)}
-          </datalist>
-
           <label>Players & Results (Total must be 0)</label>
           {currentPlayers.map((player, index) => (
             <div key={index} className="player-row">
-              <input
-                type="text"
-                list="roster-players"
-                placeholder="Player Name"
-                value={player.name}
-                onChange={(e) => handlePlayerChange(index, 'name', e.target.value)}
-                onBlur={(e) => {
-                  if (e.target.value && !players.includes(e.target.value)) {
-                    alert(`"${e.target.value}" is not in the roster. Please add them in the Player Roster section above first.`);
-                    handlePlayerChange(index, 'name', '');
-                  }
-                }}
-                required
-              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Select
+                  options={players.map(p => ({ value: p, label: p }))}
+                  value={player.name ? { value: player.name, label: player.name } : null}
+                  onChange={(selectedOption) => handlePlayerChange(index, 'name', selectedOption ? selectedOption.value : '')}
+                  placeholder="Player Name"
+                  styles={selectStyles}
+                  isClearable
+                  required
+                />
+              </div>
               <input
                 type="number"
                 step="any"

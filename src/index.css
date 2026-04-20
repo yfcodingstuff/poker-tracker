@@ -77,6 +77,8 @@ h2 {
 
 .form-group {
   margin-bottom: 1rem;
+  width: 100%;
+  min-width: 0;
 }
 
 label {
@@ -103,6 +105,14 @@ input, select {
   border-radius: 0.5rem;
   transition: all 0.2s;
   color-scheme: dark;
+}
+
+/* Fix for iOS Safari date inputs ignoring width constraints */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
 }
 
 input:focus, select:focus {

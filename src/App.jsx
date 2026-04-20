@@ -436,7 +436,7 @@ function App() {
                   <div className="flex justify-between">
                     <span style={{ fontWeight: '500' }}>{log.action}</span>
                     <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                      {new Date(log.createdAt).toLocaleDateString()} {new Date(log.createdAt).toLocaleTimeString()}
+                      {new Date(log.created_at).toLocaleDateString()} {new Date(log.created_at).toLocaleTimeString()}
                     </span>
                   </div>
                 </div>

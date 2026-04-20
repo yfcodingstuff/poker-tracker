@@ -286,6 +286,12 @@ function App() {
                 placeholder="Player Name"
                 value={player.name}
                 onChange={(e) => handlePlayerChange(index, 'name', e.target.value)}
+                onBlur={(e) => {
+                  if (e.target.value && !players.includes(e.target.value)) {
+                    alert(`"${e.target.value}" is not in the roster. Please add them in the Player Roster section above first.`);
+                    handlePlayerChange(index, 'name', '');
+                  }
+                }}
                 required
               />
               <input

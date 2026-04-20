@@ -40,12 +40,6 @@ function App() {
     setLoading(false);
   };
 
-  const handleResetAll = () => {
-    if (window.confirm("Are you sure you want to completely wipe all data? This cannot be undone.")) {
-      localStorage.clear();
-      window.location.reload();
-    }
-  };
 
   const handleAddPlayer = async (e) => {
     e.preventDefault();

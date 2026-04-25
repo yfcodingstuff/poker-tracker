@@ -36,7 +36,8 @@ export const api = {
   async addSession(session) {
     const { data, error } = await supabase.from('sessions').insert([{
       date: session.date,
-      players: session.players
+      players: session.players,
+      comment: session.comment || null
     }]).select();
     
     if (error) {
@@ -45,7 +46,11 @@ export const api = {
       return session; // return mock so UI doesn't crash
     }
 
-    await this.addLog(`Added a new session for ${session.date}`, 'SESSION');
+    const logMessage = session.comment 
+      ? `Added a new session for ${session.date} ("${session.comment}")` 
+      : `Added a new session for ${session.date}`;
+
+    await this.addLog(logMessage, 'SESSION');
     return data && data.length > 0 ? data[0] : session;
   },
 

@@ -15,6 +15,7 @@ function App() {
 
   // Form State
   const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [sessionComment, setSessionComment] = useState('');
   const [currentPlayers, setCurrentPlayers] = useState([
     { name: '', net: 0 },
     { name: '', net: 0 }
@@ -53,6 +54,12 @@ function App() {
   // Modal logic mapping
   const [settlementModal, setSettlementModal] = useState({ isOpen: false, data: null });
   const [settlementAmount, setSettlementAmount] = useState('');
+
+  // Custom Payment State
+  const [customPaymentModal, setCustomPaymentModal] = useState(false);
+  const [customFrom, setCustomFrom] = useState(null);
+  const [customTo, setCustomTo] = useState(null);
+  const [customAmount, setCustomAmount] = useState('');
 
   const [players, setPlayers] = useState([]);
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -108,12 +115,27 @@ function App() {
 
     filteredSessions.forEach(session => {
       session.players.forEach(p => {
-        if (!PnLMap[p.name]) PnLMap[p.name] = 0;
-        PnLMap[p.name] += p.net;
+        if (!PnLMap[p.name]) {
+          PnLMap[p.name] = { net: 0, wins: 0, played: 0 };
+        }
+        PnLMap[p.name].net += p.net;
+        PnLMap[p.name].played += 1;
+        if (p.net > 0) {
+          PnLMap[p.name].wins += 1;
+        }
       });
     });
 
-    const calculatedTotals = Object.entries(PnLMap).map(([name, net]) => ({ name, net }));
+    const calculatedTotals = Object.entries(PnLMap).map(([name, stats]) => {
+      const winRate = stats.played > 0 ? Math.round((stats.wins / stats.played) * 100) : 0;
+      return { 
+        name, 
+        net: stats.net, 
+        wins: stats.wins,
+        played: stats.played,
+        winRate
+      };
+    });
     calculatedTotals.sort((a, b) => b.net - a.net);
     return calculatedTotals;
   }, [filteredSessions]);
@@ -136,11 +158,33 @@ function App() {
 
     const calculatedTotals = Object.entries(balanceMap).map(([name, net]) => ({ name, net }));
 
-    const debtors = calculatedTotals.filter(t => t.net < -0.01).map(t => ({ ...t, remaining: Math.abs(t.net) }));
-    const creditors = calculatedTotals.filter(t => t.net > 0.01).map(t => ({ ...t, remaining: t.net }));
+    let debtors = calculatedTotals.filter(t => t.net < -0.01).map(t => ({ ...t, remaining: Math.abs(t.net) }));
+    let creditors = calculatedTotals.filter(t => t.net > 0.01).map(t => ({ ...t, remaining: t.net }));
 
     const calculatedSettlements = [];
 
+    // PASS 1: Exact matches (1-to-1) to drastically reduce transaction count and spread load
+    for (let i = 0; i < debtors.length; i++) {
+      for (let j = 0; j < creditors.length; j++) {
+        if (debtors[i].remaining > 0.001 && creditors[j].remaining > 0.001) {
+          if (Math.abs(debtors[i].remaining - creditors[j].remaining) < 0.001) {
+            calculatedSettlements.push({
+              from: debtors[i].name,
+              to: creditors[j].name,
+              amount: Number(debtors[i].remaining.toFixed(2))
+            });
+            debtors[i].remaining = 0;
+            creditors[j].remaining = 0;
+          }
+        }
+      }
+    }
+
+    // Filter out settled
+    debtors = debtors.filter(d => d.remaining > 0.001);
+    creditors = creditors.filter(c => c.remaining > 0.001);
+
+    // PASS 2: Greedy matching for the rest (Largest Debtor pays Largest Creditor)
     debtors.sort((a, b) => b.remaining - a.remaining);
     creditors.sort((a, b) => b.remaining - a.remaining);
 
@@ -211,12 +255,14 @@ function App() {
     const newSession = {
       id: Math.random().toString(36).substring(2, 9),
       date: sessionDate,
+      comment: sessionComment,
       players: validPlayers
     };
 
     await api.addSession(newSession);
     await loadData();
     setCurrentPlayers([{ name: '', net: 0 }, { name: '', net: 0 }]);
+    setSessionComment('');
   };
 
   const openSettleModal = (debt) => {
@@ -246,6 +292,31 @@ function App() {
     await api.addPayment(payment);
     await loadData();
     setSettlementModal({ isOpen: false, data: null });
+  };
+
+  const handleCustomSettleSubmit = async (e) => {
+    e.preventDefault();
+    const amountNum = Number(customAmount);
+
+    if (amountNum <= 0 || !customFrom || !customTo || customFrom.value === customTo.value) {
+      alert("Invalid custom payment details.");
+      return;
+    }
+
+    const payment = {
+      id: Math.random().toString(36).substring(2, 9),
+      date: new Date().toISOString().split('T')[0],
+      from: customFrom.value,
+      to: customTo.value,
+      amount: amountNum
+    };
+
+    await api.addPayment(payment);
+    await loadData();
+    setCustomPaymentModal(false);
+    setCustomFrom(null);
+    setCustomTo(null);
+    setCustomAmount('');
   };
 
   const formatCurrency = (val) => {
@@ -293,6 +364,15 @@ function App() {
                 value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
                 required
+              />
+            </div>
+            <div>
+              <label>Optional Comment</label>
+              <input
+                type="text"
+                placeholder="e.g. Vegas Trip"
+                value={sessionComment}
+                onChange={(e) => setSessionComment(e.target.value)}
               />
             </div>
           </div>
@@ -369,6 +449,7 @@ function App() {
                     <tr>
                       <th>Player</th>
                       <th>Net Balance</th>
+                      <th style={{ textAlign: 'right' }}>Win Rate</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -377,6 +458,9 @@ function App() {
                         <td>{t.name}</td>
                         <td className={t.net > 0 ? "text-success" : t.net < 0 ? "text-danger" : "text-muted"} style={{ fontWeight: '500' }}>
                           {t.net > 0 ? "+" : ""}{formatCurrency(t.net)}
+                        </td>
+                        <td className="text-muted" style={{ textAlign: 'right', fontSize: '0.875rem' }}>
+                          {t.winRate}% ({t.wins}/{t.played})
                         </td>
                       </tr>
                     ))}
@@ -389,8 +473,13 @@ function App() {
 
         <div className="flex flex-col gap-4">
           <div className="glass-panel" style={{ flex: 1 }}>
-            <h2>Pending Settlements</h2>
-            <p className="text-muted text-sm mt-2" style={{ marginBottom: '1rem' }}>Settle entirely or partially based on what is owed.</p>
+            <div className="flex justify-between items-center" style={{ marginBottom: '1rem' }}>
+              <h2 style={{ marginBottom: 0 }}>Pending Settlements</h2>
+              <button className="btn btn-outline btn-sm" onClick={() => setCustomPaymentModal(true)}>
+                + Custom Payment
+              </button>
+            </div>
+            <p className="text-muted text-sm" style={{ marginBottom: '1rem' }}>Settle entirely or partially based on what is owed.</p>
 
             {settlements.length === 0 ? (
               <p className="text-muted">All debts are settled!</p>
@@ -429,6 +518,7 @@ function App() {
                 <div key={session.id} style={{ background: 'rgba(15, 23, 42, 0.6)', padding: '1.25rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
                   <h3 style={{ marginBottom: '0.75rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
                     {new Date(session.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+                    {session.comment && ` - ${session.comment}`}
                   </h3>
                   <div className="flex flex-col gap-2">
                     {session.players.map(p => (
@@ -503,6 +593,58 @@ function App() {
           </div>
         </div>
       )}
+      {/* Custom Payment Modal */}
+      {customPaymentModal && (
+        <div className="modal-overlay" onClick={() => setCustomPaymentModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">Log Custom Payment</h3>
+            <p className="text-muted text-sm" style={{ marginBottom: '1rem' }}>
+              Manually log a payment if you already transferred money outside the suggested routes.
+            </p>
+            <form onSubmit={handleCustomSettleSubmit}>
+              <div className="form-group">
+                <label>Payer (From)</label>
+                <div style={{ minWidth: '100%' }}>
+                  <Select
+                    options={players.map(p => ({ value: p, label: p }))}
+                    value={customFrom}
+                    onChange={setCustomFrom}
+                    styles={selectStyles}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Payee (To)</label>
+                <div style={{ minWidth: '100%' }}>
+                  <Select
+                    options={players.map(p => ({ value: p, label: p }))}
+                    value={customTo}
+                    onChange={setCustomTo}
+                    styles={selectStyles}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Amount to Settle</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-4">
+                <button type="button" className="btn btn-outline" onClick={() => setCustomPaymentModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Log Payment</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

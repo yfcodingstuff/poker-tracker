@@ -75,10 +75,9 @@ function App() {
   const handleAddPlayer = async (e) => {
     e.preventDefault();
     if (!newPlayerName.trim()) return;
-    const updatedPlayers = await api.addPlayer(newPlayerName.trim());
-    setPlayers(updatedPlayers);
+    await api.addPlayer(newPlayerName.trim());
     setNewPlayerName('');
-    api.getLogs().then(setLogs);
+    await loadData();
   };
 
   useEffect(() => {
@@ -215,12 +214,8 @@ function App() {
       players: validPlayers
     };
 
-    const saved = await api.addSession(newSession);
-    setSessions(prev => [...prev, saved]);
-
-    // Refresh logs
-    api.getLogs().then(setLogs);
-
+    await api.addSession(newSession);
+    await loadData();
     setCurrentPlayers([{ name: '', net: 0 }, { name: '', net: 0 }]);
   };
 
@@ -248,10 +243,8 @@ function App() {
       amount: amountNum
     };
 
-    const saved = await api.addPayment(payment);
-    setPayments(prev => [...prev, saved]);
-
-    api.getLogs().then(setLogs);
+    await api.addPayment(payment);
+    await loadData();
     setSettlementModal({ isOpen: false, data: null });
   };
 

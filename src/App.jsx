@@ -17,8 +17,8 @@ function App() {
   const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
   const [sessionComment, setSessionComment] = useState('');
   const [currentPlayers, setCurrentPlayers] = useState([
-    { name: '', net: 0 },
-    { name: '', net: 0 }
+    { name: '', net: '' },
+    { name: '', net: '' }
   ]);
 
   const selectStyles = {
@@ -216,12 +216,12 @@ function App() {
   }, [filteredSessions, filteredPayments]);
 
   const handleAddPlayerFields = () => {
-    setCurrentPlayers([...currentPlayers, { name: '', net: 0 }]);
+    setCurrentPlayers([...currentPlayers, { name: '', net: '' }]);
   };
 
   const handlePlayerChange = (index, field, value) => {
     const newPlayers = [...currentPlayers];
-    newPlayers[index][field] = field === 'net' ? Number(value) || 0 : value;
+    newPlayers[index][field] = value;
     setCurrentPlayers(newPlayers);
   };
 
@@ -234,7 +234,10 @@ function App() {
   const handleSaveSession = async (e) => {
     e.preventDefault();
 
-    const validPlayers = currentPlayers.filter(p => p.name.trim() !== '');
+    const validPlayers = currentPlayers
+      .filter(p => p.name.trim() !== '')
+      .map(p => ({ ...p, net: Number(p.net) || 0 }));
+      
     if (validPlayers.length < 2) {
       alert("At least 2 players are required.");
       return;
@@ -261,7 +264,7 @@ function App() {
 
     await api.addSession(newSession);
     await loadData();
-    setCurrentPlayers([{ name: '', net: 0 }, { name: '', net: 0 }]);
+    setCurrentPlayers([{ name: '', net: '' }, { name: '', net: '' }]);
     setSessionComment('');
   };
 
@@ -395,7 +398,7 @@ function App() {
                 type="number"
                 step="any"
                 placeholder="Win/Loss Amount"
-                value={player.net === 0 ? '' : player.net}
+                value={player.net}
                 onChange={(e) => handlePlayerChange(index, 'net', e.target.value)}
                 required
               />
